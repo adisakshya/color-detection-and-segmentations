@@ -1,59 +1,92 @@
-import cv2
-import numpy as np
-import time
+# Logger Function
+def log(label, message):
+	print('[{}] => {}'.format(label, message))
 
-print('OpenCV Version:', cv2.__version__)
+# Import required modules
+try:
+	import cv2
+	import numpy as np
+	import time	 
+except Exception as error:
+	log('ERROR', error)
 
+# Versions of modules used
+log('INFO', 'OpenCV Version: ' + cv2.__version__)
+log('INFO', 'NumPy Version: ' + np.__version__)
+
+# Capture Video
 capture_video = cv2.VideoCapture(0)
 
-#give the camera to warm up
+# Let the camera warm up
+log('INFO', 'Warming up camera')
 time.sleep(1) 
-count = 0 
-background = 0 
 
-#capturing the background in range of 60
+# Variable to store background
+background = None
+
+# Capture the background
+log('INFO', 'Capturing background')
 for i in range(60):
-	return_val , background = capture_video.read()
+	return_val, background = capture_video.read()
 	if return_val == False :
 		continue 
 
+# Flip background
 background = np.flip(background, axis=1)
 
-# we are reading from video 
+# Reading from video 
+log('INFO', 'Capturing from video')
 while (capture_video.isOpened()):
-	return_val, img = capture_video.read()
-	if not return_val :
-		break 
-	count = count + 1
-	img = np.flip(img , axis=1)
-	# convert the image - BGR to HSV
-	# as we focused on detection of red color 
-	hsv = cv2.cvtColor(img , cv2.COLOR_BGR2HSV)
-	# generating mask to detect red color
-	# HSV
-	# it should be mono-color cloth 
-	# lower range
-	lower_red = np.array([100, 40, 40])
-	upper_red = np.array([100, 255, 255])
-	mask1 = cv2.inRange(hsv,lower_red,upper_red)
+	
+	try:
 
-	lower_red = np.array([155, 40, 40])
-	upper_red = np.array([180, 255, 255])
-	mask2 = cv2.inRange(hsv,lower_red,upper_red)
+		# Read image
+		return_val, image = capture_video.read()
+		if not return_val :
+			break 
+		
+		# Flip the image
+		image = np.flip(image, axis=1)
+		
+		# Transform BGR to HSV
+		hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+		
+		# Generate mask to detect red color
+		# lower range 1
+		lower_red = np.array([100, 40, 40])
+		# upper range 1
+		upper_red = np.array([100, 255, 255])
+		# Mask 1
+		mask1 = cv2.inRange(hsv,lower_red, upper_red)
 
-	mask1 = mask1+mask2
+		# lower range 2
+		lower_red = np.array([155, 40, 40])
+		# upper range 2
+		upper_red = np.array([180, 255, 255])
+		# Mask 2
+		mask2 = cv2.inRange(hsv,lower_red, upper_red)
 
-    # Refining the mask corresponding to the detected red color
-	mask1 = cv2.morphologyEx(mask1, cv2.MORPH_OPEN, np.ones((3,3),np.uint8),iterations=2)
-	mask1 = cv2.dilate(mask1,np.ones((3,3),np.uint8),iterations = 1)
-	mask2 = cv2.bitwise_not(mask1)
+		# Mask to detect red color
+		mask1 = mask1 + mask2
 
-    # Generating the final output
-	res1 = cv2.bitwise_and(background,background,mask=mask1)
-	res2 = cv2.bitwise_and(img,img,mask=mask2)
-	final_output = cv2.addWeighted(res1,1,res2,1,0)
+		# Refining the mask corresponding to the detected red color
+		mask1 = cv2.morphologyEx(mask1, cv2.MORPH_OPEN, np.ones((3,3), np.uint8), iterations=2)
+		mask1 = cv2.dilate(mask1, np.ones((3,3), np.uint8), iterations = 1)
+		mask2 = cv2.bitwise_not(mask1)
 
-	cv2.imshow("INVISIBLE MAN",final_output)
-	k = cv2.waitKey(10)
-	if k == 27:
+		# Generating the final output
+		res1 = cv2.bitwise_and(background, background, mask=mask1)
+		res2 = cv2.bitwise_and(image, image, mask=mask2)
+		final_output = cv2.addWeighted(res1, 1, res2, 1, 0)
+
+		cv2.imshow("Color Detection & Segmentation", final_output)
+		k = cv2.waitKey(10)
+		if k == 27:
+			log('INFO', 'Exiting')
+			break
+	
+	except Exception as error:
+
+		log('ERROR', error)
+		log('INFO', 'Exiting')
 		break
